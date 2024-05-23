@@ -5876,6 +5876,49 @@ void GCS_MAVLINK::send_autopilot_state_for_gimbal_device() const
 #endif  // AP_AHRS_ENABLED
 }
 
+void GCS_MAVLINK::send_flight_information()
+{
+    const uint32_t time_boot_ms = AP_HAL::millis();
+
+    // We send time since boot (in micros) rather than a UTC timestamp, as this
+    // works better with SITL when SIM_SPEEDUP > 1
+    const uint64_t arm_time_us = (uint64_t)AP::arming().arm_time_ms() * AP_USEC_PER_MSEC;
+
+    const MAV_LANDED_STATE current_landed_state = landed_state();
+    if (flight_info.last_landed_state != current_landed_state) {
+        switch (current_landed_state) {
+            case MAV_LANDED_STATE_IN_AIR:
+            case MAV_LANDED_STATE_TAKEOFF:
+            case MAV_LANDED_STATE_LANDING: {
+                if (!flight_info.takeoff_time_ms) {
+                    flight_info.takeoff_time_ms = time_boot_ms;
+                }
+                break;
+            }
+            default: {
+                flight_info.takeoff_time_ms = 0;
+                break;
+            }
+        }
+
+        flight_info.last_landed_state = current_landed_state;
+    }
+
+    // We send time since boot (in micros) rather than a UTC timestamp, as this
+    // works better with SITL when SIM_SPEEDUP > 1
+    uint64_t takeoff_time_us = ((uint64_t)flight_info.takeoff_time_ms) * AP_USEC_PER_MSEC;
+
+    const uint64_t flight_uuid = 0;
+
+    mavlink_msg_flight_information_send(
+        chan,
+        time_boot_ms,
+        arm_time_us,
+        takeoff_time_us,
+        flight_uuid
+    );
+}
+
 void GCS_MAVLINK::send_received_message_deprecation_warning(const char * message)
 {
     // we're not expecting very many of these ever, so a tiny bit of
@@ -6335,6 +6378,11 @@ bool GCS_MAVLINK::try_send_message(const enum ap_message id)
         ret = send_relay_status();
         break;
 #endif
+
+    case MSG_FLIGHT_INFORMATION:
+        CHECK_PAYLOAD_SIZE(FLIGHT_INFORMATION);
+        send_flight_information();
+        break;
 
     default:
         // try_send_message must always at some stage return true for
