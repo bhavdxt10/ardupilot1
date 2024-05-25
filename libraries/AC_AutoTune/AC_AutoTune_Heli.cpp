@@ -133,7 +133,7 @@ AC_AutoTune_Heli::AC_AutoTune_Heli()
 void AC_AutoTune_Heli::test_init()
 {
     AC_AutoTune_FreqResp::ResponseType resp_type = AC_AutoTune_FreqResp::ResponseType::RATE;
-    FreqRespCalcType calc_type = RFF;
+    FreqRespCalcType calc_type = RATE;
     FreqRespInput freq_resp_input = TARGET;
     float freq_resp_amplitude = 5.0f;  // amplitude in deg
     float filter_freq = 10.0f;
@@ -145,7 +145,7 @@ void AC_AutoTune_Heli::test_init()
             start_freq = next_test_freq;
         }
         stop_freq = start_freq;
-        filter_freq = 2.0f/M_2PI;
+        filter_freq = 4.0f/M_2PI;
         
         attitude_control->bf_feedforward(false);
         attitude_control->use_sqrt_controller(false);
@@ -165,7 +165,7 @@ void AC_AutoTune_Heli::test_init()
         freq_resp_amplitude = 10.0f;  // increase amplitude with limited rate to get desired square wave rate response
         // variables needed to initialize frequency response object and test method
         resp_type = AC_AutoTune_FreqResp::ResponseType::RATE;
-        calc_type = RATE;
+        calc_type = RFF;
         freq_resp_input = TARGET;
         pre_calc_cycles = 1.0f;
         num_dwell_cycles = 3;
@@ -770,9 +770,16 @@ void AC_AutoTune_Heli::dwell_test_init(float start_frq, float stop_frq, float am
     cycle_complete_mtr = false;
     sweep_complete = false;
 
+    rff_full_cycle = false;
+    rff_input_sum = 0.0f;
+    rff_response_sum = 0.0f;
+    rff_on_rate_limit = false;
+    rff_gain = 0.0f;
     if (rff_info_buffer != nullptr) {
         rff_info_buffer->clear();
     }
+    input_sum = 0.0f;
+    response_sum = 0.0f;
 
 
 }
@@ -884,11 +891,9 @@ void AC_AutoTune_Heli::dwell_test_run(sweep_info &test_data)
     command_out = command_filt.apply((command_reading - filt_command_reading.get()),
                 AP::scheduler().get_loop_period_s());
 
-//    gcs().send_text(MAV_SEVERITY_INFO, "pushing to buffer");
- 
     float rff_input_avg;
     float rff_response_avg;
-    push_to_rff_info_buffer(tgt_rate_reading - filt_tgt_rate_reading.get(), gyro_reading - filt_gyro_reading.get(), rff_input_avg, rff_response_avg);
+    push_to_rff_info_buffer(tgt_rate_reading, gyro_reading, rff_input_avg, rff_response_avg);
 
     float dwell_gain_mtr = 0.0f; 
     float dwell_phase_mtr = 0.0f;
@@ -898,8 +903,28 @@ void AC_AutoTune_Heli::dwell_test_run(sweep_info &test_data)
     if ((float)(now - dwell_start_time_ms) > pre_calc_cycles * cycle_time_ms || (test_input_type == AC_AutoTune_FreqResp::InputType::SWEEP && settle_time == 0)) {
         freqresp_mtr.update(command_out,command_out,rotation_rate, dwell_freq);
         freqresp_tgt.update(command_out,filt_target_rate,rotation_rate, dwell_freq);
-    filt_target_rate = rff_input_avg;
-    rotation_rate = rff_response_avg;
+
+        if (test_input_type == AC_AutoTune_FreqResp::InputType::DWELL && test_calc_type == RFF) {
+            float rate_limit = radians(4.90);
+            if (fabsf(tgt_rate_reading) > rate_limit) {
+                rff_on_rate_limit = true;
+            } else if (rff_on_rate_limit && fabsf(tgt_rate_reading) < rate_limit) {
+                rff_input_sum += fabsf(rff_input_avg);
+                rff_response_sum += fabsf(rff_response_avg);
+                if (rff_full_cycle) {
+                    // only calculate gain for full cycle
+                    if (fabsf(rff_input_sum) > 0.0f) {
+                        rff_gain = rff_response_sum / rff_input_sum;
+                    }
+                    rff_full_cycle = false;
+                } else {
+                    rff_full_cycle = true;
+                }
+                rff_on_rate_limit = false;
+                gcs().send_text(MAV_SEVERITY_INFO, "AutoTune: output= %f, input=%f, RFF Gain=%f", (double)(rff_response_avg),(double)(rff_input_avg),(double)(rff_gain));
+
+            }
+        }
 
         if (freqresp_mtr.is_cycle_complete()) {
             if (test_input_type == AC_AutoTune_FreqResp::InputType::SWEEP) {
@@ -951,9 +976,15 @@ void AC_AutoTune_Heli::dwell_test_run(sweep_info &test_data)
             if (test_input_type == AC_AutoTune_FreqResp::InputType::SWEEP) {
                 curr_test = curr_test_tgt;
             } else {
-                test_data.freq = test_start_freq;
-                test_data.gain = dwell_gain_tgt;
-                test_data.phase = dwell_phase_tgt;
+                if (test_calc_type == RFF) {
+                    test_data.freq = test_start_freq;
+                    test_data.gain = rff_gain;
+                    test_data.phase = 10.0f;
+                } else {
+                    test_data.freq = test_start_freq;
+                    test_data.gain = dwell_gain_tgt;
+                    test_data.phase = dwell_phase_tgt;
+                }
             }
         } else {
             if (test_input_type == AC_AutoTune_FreqResp::InputType::SWEEP) {
@@ -1197,25 +1228,18 @@ void AC_AutoTune_Heli::set_gains_post_tune(AxisType test_axis)
 // FF is adjusted until rate requested is achieved
 void AC_AutoTune_Heli::updating_rate_ff_up(float &tune_ff, sweep_info &test_data, float &next_freq)
 {
-    float test_freq_incr = 0.05f * M_2PI;
     next_freq = test_data.freq;
-    if (test_data.phase > 45.0f) {
-        next_freq = constrain_float(next_freq - test_freq_incr, 0.1 * M_2PI, max_sweep_freq);
-    } else if (test_data.phase < 0.0f) {
-        next_freq = constrain_float(next_freq + test_freq_incr, 0.1 * M_2PI, max_sweep_freq);
-    } else {
-        if ((test_data.gain > 0.1 && test_data.gain < 0.93) || test_data.gain > 0.98) {
-            if (tune_ff > 0.0f) {
-                tune_ff =  0.95f * tune_ff / test_data.gain;
-            } else {
-                tune_ff = 0.03f;
-            }
-        } else if (test_data.gain >= 0.93 && test_data.gain <= 0.98) {
-            counter = AUTOTUNE_SUCCESS_COUNT;
-            // reset next_freq for next test
-            next_freq = 0.0f;
-            tune_ff = constrain_float(tune_ff,0.0f,1.0f);
+    if (test_data.gain < 0.90 || test_data.gain > 0.95) {
+        if (tune_ff > 0.0f) {
+            tune_ff =  0.925f * tune_ff / constrain_float(test_data.gain, 0.75, 1.25);  //keep changes less than 25%
+        } else {
+            tune_ff = 0.03f;
         }
+    } else if (test_data.gain >= 0.90 && test_data.gain <= 0.95) {
+        counter = AUTOTUNE_SUCCESS_COUNT;
+        // reset next_freq for next test
+        next_freq = 0.0f;
+        tune_ff = constrain_float(tune_ff,0.0f,1.0f);
     }
 }
 
@@ -1688,12 +1712,12 @@ bool AC_AutoTune_Heli::exceeded_freq_range(float frequency)
 void AC_AutoTune_Heli::push_to_rff_info_buffer(float input, float response, float &input_avg, float &response_avg)
 {
     rff_info sample;
-    //if buffer isn't full, push then return
-    if (rff_info_buffer->space() != 0) {
-        sample.input = input;
-        sample.response = response;
+    float num_samples = 80.0f;
+    //if buffer isn't full, fill with zeros
+    while (rff_info_buffer->space() != 0) {
+        sample.input = 0.0f;
+        sample.response = 0.0f;
         rff_info_buffer->push(sample);
-        return;
     }
 
     if (!rff_info_buffer->pop(sample)) {
@@ -1701,10 +1725,10 @@ void AC_AutoTune_Heli::push_to_rff_info_buffer(float input, float response, floa
         return;
     }
     // remove popped data and add pushed data to the summation
-    rff_input_sum = rff_input_sum - sample.input + input;
-    rff_response_sum = rff_response_sum - sample.response + response;
-    input_avg = rff_input_sum / 80.0f;
-    response_avg = rff_response_sum / 80.0f;
+    input_sum = input_sum - sample.input + input;
+    response_sum = response_sum - sample.response + response;
+    input_avg = input_sum / num_samples;
+    response_avg = response_sum / num_samples;
     // push new data
     sample.input = input;
     sample.response = response;
