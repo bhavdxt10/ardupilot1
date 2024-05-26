@@ -150,18 +150,6 @@ void AC_AutoTune_Heli::test_init()
         attitude_control->bf_feedforward(false);
         attitude_control->use_sqrt_controller(false);
         attitude_control->use_sqrt_controller(true); // invoke rate and acceleration limits to provide square wave rate response.
-        switch (axis) {
-        case ROLL:
-            attitude_control->set_ang_vel_roll_max_degs(5.0f);
-            break;
-        case PITCH:
-            attitude_control->set_ang_vel_pitch_max_degs(5.0f);
-            break;
-        case YAW:
-        case YAW_D:
-            attitude_control->set_ang_vel_yaw_max_degs(5.0f);
-            break;
-        }
         freq_resp_amplitude = 10.0f;  // increase amplitude with limited rate to get desired square wave rate response
         // variables needed to initialize frequency response object and test method
         resp_type = AC_AutoTune_FreqResp::ResponseType::RATE;
@@ -431,6 +419,7 @@ void AC_AutoTune_Heli::backup_gains_and_initialise()
     orig_roll_smax = attitude_control->get_rate_roll_pid().slew_limit();
     orig_roll_sp = attitude_control->get_angle_roll_p().kP();
     orig_roll_accel = attitude_control->get_accel_roll_max_cdss();
+    orig_roll_rate = attitude_control->get_ang_vel_roll_max_degs();
     tune_roll_rp = attitude_control->get_rate_roll_pid().kP();
     tune_roll_rd = attitude_control->get_rate_roll_pid().kD();
     tune_roll_rff = attitude_control->get_rate_roll_pid().ff();
@@ -445,6 +434,7 @@ void AC_AutoTune_Heli::backup_gains_and_initialise()
     orig_pitch_smax = attitude_control->get_rate_pitch_pid().slew_limit();
     orig_pitch_sp = attitude_control->get_angle_pitch_p().kP();
     orig_pitch_accel = attitude_control->get_accel_pitch_max_cdss();
+    orig_pitch_rate = attitude_control->get_ang_vel_pitch_max_degs();
     tune_pitch_rp = attitude_control->get_rate_pitch_pid().kP();
     tune_pitch_rd = attitude_control->get_rate_pitch_pid().kD();
     tune_pitch_rff = attitude_control->get_rate_pitch_pid().ff();
@@ -460,6 +450,7 @@ void AC_AutoTune_Heli::backup_gains_and_initialise()
     orig_yaw_rLPF = attitude_control->get_rate_yaw_pid().filt_E_hz();
     orig_yaw_accel = attitude_control->get_accel_yaw_max_cdss();
     orig_yaw_sp = attitude_control->get_angle_yaw_p().kP();
+    orig_yaw_rate = attitude_control->get_ang_vel_yaw_max_degs();
     tune_yaw_rp = attitude_control->get_rate_yaw_pid().kP();
     tune_yaw_rd = attitude_control->get_rate_yaw_pid().kD();
     tune_yaw_rff = attitude_control->get_rate_yaw_pid().ff();
@@ -476,13 +467,13 @@ void AC_AutoTune_Heli::load_orig_gains()
 {
     attitude_control->bf_feedforward(orig_bf_feedforward);
     if (roll_enabled()) {
-        load_gain_set(ROLL, orig_roll_rp, orig_roll_ri, orig_roll_rd, orig_roll_rff, orig_roll_sp, orig_roll_accel, orig_roll_fltt, 0.0f, orig_roll_smax);
+        load_gain_set(ROLL, orig_roll_rp, orig_roll_ri, orig_roll_rd, orig_roll_rff, orig_roll_sp, orig_roll_accel, orig_roll_fltt, 0.0f, orig_roll_smax, orig_roll_rate);
     }
     if (pitch_enabled()) {
-        load_gain_set(PITCH, orig_pitch_rp, orig_pitch_ri, orig_pitch_rd, orig_pitch_rff, orig_pitch_sp, orig_pitch_accel, orig_pitch_fltt, 0.0f, orig_pitch_smax);
+        load_gain_set(PITCH, orig_pitch_rp, orig_pitch_ri, orig_pitch_rd, orig_pitch_rff, orig_pitch_sp, orig_pitch_accel, orig_pitch_fltt, 0.0f, orig_pitch_smax, orig_pitch_rate);
     }
     if (yaw_enabled()) {
-        load_gain_set(YAW, orig_yaw_rp, orig_yaw_ri, orig_yaw_rd, orig_yaw_rff, orig_yaw_sp, orig_yaw_accel, orig_yaw_fltt, orig_yaw_rLPF, orig_yaw_smax);
+        load_gain_set(YAW, orig_yaw_rp, orig_yaw_ri, orig_yaw_rd, orig_yaw_rff, orig_yaw_sp, orig_yaw_accel, orig_yaw_fltt, orig_yaw_rLPF, orig_yaw_smax, orig_yaw_rate);
     }
 }
 
@@ -495,14 +486,14 @@ void AC_AutoTune_Heli::load_tuned_gains()
         attitude_control->set_accel_pitch_max_cdss(0.0f);
     }
     if (roll_enabled()) {
-        load_gain_set(ROLL, tune_roll_rp, tune_roll_rff*AUTOTUNE_FFI_RATIO_FINAL, tune_roll_rd, tune_roll_rff, tune_roll_sp, tune_roll_accel, orig_roll_fltt, 0.0f, orig_roll_smax);
+        load_gain_set(ROLL, tune_roll_rp, tune_roll_rff*AUTOTUNE_FFI_RATIO_FINAL, tune_roll_rd, tune_roll_rff, tune_roll_sp, tune_roll_accel, orig_roll_fltt, 0.0f, orig_roll_smax, orig_roll_rate);
     }
     if (pitch_enabled()) {
-        load_gain_set(PITCH, tune_pitch_rp, tune_pitch_rff*AUTOTUNE_FFI_RATIO_FINAL, tune_pitch_rd, tune_pitch_rff, tune_pitch_sp, tune_pitch_accel, orig_pitch_fltt, 0.0f, orig_pitch_smax);
+        load_gain_set(PITCH, tune_pitch_rp, tune_pitch_rff*AUTOTUNE_FFI_RATIO_FINAL, tune_pitch_rd, tune_pitch_rff, tune_pitch_sp, tune_pitch_accel, orig_pitch_fltt, 0.0f, orig_pitch_smax, orig_pitch_rate);
     }
     if (yaw_enabled()) {
         if (!is_zero(tune_yaw_rp)) {
-            load_gain_set(YAW, tune_yaw_rp, tune_yaw_rp*AUTOTUNE_YAW_PI_RATIO_FINAL, tune_yaw_rd, tune_yaw_rff, tune_yaw_sp, tune_yaw_accel, orig_yaw_fltt, tune_yaw_rLPF, orig_yaw_smax);
+            load_gain_set(YAW, tune_yaw_rp, tune_yaw_rp*AUTOTUNE_YAW_PI_RATIO_FINAL, tune_yaw_rd, tune_yaw_rff, tune_yaw_sp, tune_yaw_accel, orig_yaw_fltt, tune_yaw_rLPF, orig_yaw_smax, orig_yaw_rate);
         }
     }
 }
@@ -515,13 +506,13 @@ void AC_AutoTune_Heli::load_intra_test_gains()
     // sanity check the gains
     attitude_control->bf_feedforward(true);
     if (roll_enabled()) {
-        load_gain_set(ROLL, orig_roll_rp, orig_roll_rff * AUTOTUNE_FFI_RATIO_FOR_TESTING, orig_roll_rd, orig_roll_rff, orig_roll_sp, orig_roll_accel, orig_roll_fltt, 0.0f, orig_roll_smax);
+        load_gain_set(ROLL, orig_roll_rp, orig_roll_rff * AUTOTUNE_FFI_RATIO_FOR_TESTING, orig_roll_rd, orig_roll_rff, orig_roll_sp, orig_roll_accel, orig_roll_fltt, 0.0f, orig_roll_smax, orig_roll_rate);
     }
     if (pitch_enabled()) {
-        load_gain_set(PITCH, orig_pitch_rp, orig_pitch_rff * AUTOTUNE_FFI_RATIO_FOR_TESTING, orig_pitch_rd, orig_pitch_rff, orig_pitch_sp, orig_pitch_accel, orig_pitch_fltt, 0.0f, orig_pitch_smax);
+        load_gain_set(PITCH, orig_pitch_rp, orig_pitch_rff * AUTOTUNE_FFI_RATIO_FOR_TESTING, orig_pitch_rd, orig_pitch_rff, orig_pitch_sp, orig_pitch_accel, orig_pitch_fltt, 0.0f, orig_pitch_smax, orig_pitch_rate);
     }
     if (yaw_enabled()) {
-        load_gain_set(YAW, orig_yaw_rp, orig_yaw_rp*AUTOTUNE_PI_RATIO_FOR_TESTING, orig_yaw_rd, orig_yaw_rff, orig_yaw_sp, orig_yaw_accel, orig_yaw_fltt, orig_yaw_rLPF, orig_yaw_smax);
+        load_gain_set(YAW, orig_yaw_rp, orig_yaw_rp*AUTOTUNE_PI_RATIO_FOR_TESTING, orig_yaw_rd, orig_yaw_rff, orig_yaw_sp, orig_yaw_accel, orig_yaw_fltt, orig_yaw_rLPF, orig_yaw_smax, orig_yaw_rate);
     }
 }
 
@@ -529,7 +520,7 @@ void AC_AutoTune_Heli::load_intra_test_gains()
 // called by control_attitude() just before it beings testing a gain (i.e. just before it twitches)
 void AC_AutoTune_Heli::load_test_gains()
 {
-    float rate_p, rate_i, rate_d;
+    float rate_p, rate_i, rate_d, rate_test_max;
     switch (axis) {
     case ROLL:
         if (tune_type == SP_UP || tune_type == TUNE_CHECK) {
@@ -545,7 +536,12 @@ void AC_AutoTune_Heli::load_test_gains()
             rate_p = tune_roll_rp;
             rate_d = tune_roll_rd;
         }
-        load_gain_set(ROLL, rate_p, rate_i, rate_d, tune_roll_rff, tune_roll_sp, tune_roll_accel, orig_roll_fltt, 0.0f, 0.0f);
+        if (tune_type == RFF_UP) {
+            rate_test_max = 5.0f;
+        } else {
+            rate_test_max = orig_roll_rate;
+        }
+        load_gain_set(ROLL, rate_p, rate_i, rate_d, tune_roll_rff, tune_roll_sp, tune_roll_accel, orig_roll_fltt, 0.0f, 0.0f, rate_test_max);
         break;
     case PITCH:
         if (tune_type == SP_UP || tune_type == TUNE_CHECK) {
@@ -561,7 +557,12 @@ void AC_AutoTune_Heli::load_test_gains()
             rate_p = tune_pitch_rp;
             rate_d = tune_pitch_rd;
         }
-        load_gain_set(PITCH, rate_p, rate_i, rate_d, tune_pitch_rff, tune_pitch_sp, tune_pitch_accel, orig_pitch_fltt, 0.0f, 0.0f);
+        if (tune_type == RFF_UP) {
+            rate_test_max = 5.0f;
+        } else {
+            rate_test_max = orig_pitch_rate;
+        }
+        load_gain_set(PITCH, rate_p, rate_i, rate_d, tune_pitch_rff, tune_pitch_sp, tune_pitch_accel, orig_pitch_fltt, 0.0f, 0.0f, rate_test_max);
         break;
     case YAW:
     case YAW_D:
@@ -571,13 +572,18 @@ void AC_AutoTune_Heli::load_test_gains()
             // freeze integrator to hold trim by making i term small during rate controller tuning
             rate_i = 0.01f * orig_yaw_ri;
         }
-        load_gain_set(YAW, tune_yaw_rp, rate_i, tune_yaw_rd, tune_yaw_rff, tune_yaw_sp, tune_yaw_accel, orig_yaw_fltt, tune_yaw_rLPF, 0.0f);
+        if (tune_type == RFF_UP) {
+            rate_test_max = 5.0f;
+        } else {
+            rate_test_max = orig_yaw_rate;
+        }
+        load_gain_set(YAW, tune_yaw_rp, rate_i, tune_yaw_rd, tune_yaw_rff, tune_yaw_sp, tune_yaw_accel, orig_yaw_fltt, tune_yaw_rLPF, 0.0f, rate_test_max);
         break;
     }
 }
 
 // load gains
-void AC_AutoTune_Heli::load_gain_set(AxisType s_axis, float rate_p, float rate_i, float rate_d, float rate_ff, float angle_p, float max_accel, float rate_fltt, float rate_flte, float smax)
+void AC_AutoTune_Heli::load_gain_set(AxisType s_axis, float rate_p, float rate_i, float rate_d, float rate_ff, float angle_p, float max_accel, float rate_fltt, float rate_flte, float smax, float max_rate)
 {
     switch (s_axis) {
     case ROLL:
@@ -589,6 +595,7 @@ void AC_AutoTune_Heli::load_gain_set(AxisType s_axis, float rate_p, float rate_i
         attitude_control->get_rate_roll_pid().slew_limit(smax);
         attitude_control->get_angle_roll_p().kP(angle_p);
         attitude_control->set_accel_roll_max_cdss(max_accel);
+        attitude_control->set_ang_vel_roll_max_degs(max_rate);
         break;
     case PITCH:
         attitude_control->get_rate_pitch_pid().kP(rate_p);
@@ -599,6 +606,7 @@ void AC_AutoTune_Heli::load_gain_set(AxisType s_axis, float rate_p, float rate_i
         attitude_control->get_rate_pitch_pid().slew_limit(smax);
         attitude_control->get_angle_pitch_p().kP(angle_p);
         attitude_control->set_accel_pitch_max_cdss(max_accel);
+        attitude_control->set_ang_vel_pitch_max_degs(max_rate);
         break;
     case YAW:
     case YAW_D:
@@ -611,6 +619,7 @@ void AC_AutoTune_Heli::load_gain_set(AxisType s_axis, float rate_p, float rate_i
         attitude_control->get_rate_yaw_pid().filt_E_hz(rate_flte);
         attitude_control->get_angle_yaw_p().kP(angle_p);
         attitude_control->set_accel_yaw_max_cdss(max_accel);
+        attitude_control->set_ang_vel_yaw_max_degs(max_rate);
         break;
     }
 }
@@ -632,7 +641,7 @@ void AC_AutoTune_Heli::save_tuning_gains()
 
     // sanity check the rate P values
     if ((axes_completed & AUTOTUNE_AXIS_BITMASK_ROLL) && roll_enabled()) {
-        load_gain_set(ROLL, tune_roll_rp, tune_roll_rff*AUTOTUNE_FFI_RATIO_FINAL, tune_roll_rd, tune_roll_rff, tune_roll_sp, tune_roll_accel, orig_roll_fltt, 0.0f, orig_roll_smax);
+        load_gain_set(ROLL, tune_roll_rp, tune_roll_rff*AUTOTUNE_FFI_RATIO_FINAL, tune_roll_rd, tune_roll_rff, tune_roll_sp, tune_roll_accel, orig_roll_fltt, 0.0f, orig_roll_smax, orig_roll_rate);
         // save rate roll gains
         attitude_control->get_rate_roll_pid().save_gains();
 
@@ -649,7 +658,7 @@ void AC_AutoTune_Heli::save_tuning_gains()
     }
 
     if ((axes_completed & AUTOTUNE_AXIS_BITMASK_PITCH) && pitch_enabled()) {
-        load_gain_set(PITCH, tune_pitch_rp, tune_pitch_rff*AUTOTUNE_FFI_RATIO_FINAL, tune_pitch_rd, tune_pitch_rff, tune_pitch_sp, tune_pitch_accel, orig_pitch_fltt, 0.0f, orig_pitch_smax);
+        load_gain_set(PITCH, tune_pitch_rp, tune_pitch_rff*AUTOTUNE_FFI_RATIO_FINAL, tune_pitch_rd, tune_pitch_rff, tune_pitch_sp, tune_pitch_accel, orig_pitch_fltt, 0.0f, orig_pitch_smax, orig_pitch_rate);
         // save rate pitch gains
         attitude_control->get_rate_pitch_pid().save_gains();
 
@@ -666,7 +675,7 @@ void AC_AutoTune_Heli::save_tuning_gains()
     }
 
     if ((axes_completed & AUTOTUNE_AXIS_BITMASK_YAW) && yaw_enabled() && !is_zero(tune_yaw_rp)) {
-        load_gain_set(YAW, tune_yaw_rp, tune_yaw_rp*AUTOTUNE_YAW_PI_RATIO_FINAL, tune_yaw_rd, tune_yaw_rff, tune_yaw_sp, tune_yaw_accel, orig_yaw_fltt, orig_yaw_rLPF, orig_yaw_smax);
+        load_gain_set(YAW, tune_yaw_rp, tune_yaw_rp*AUTOTUNE_YAW_PI_RATIO_FINAL, tune_yaw_rd, tune_yaw_rff, tune_yaw_sp, tune_yaw_accel, orig_yaw_fltt, orig_yaw_rLPF, orig_yaw_smax, orig_yaw_rate);
         // save rate yaw gains
         attitude_control->get_rate_yaw_pid().save_gains();
 
@@ -1114,6 +1123,10 @@ void AC_AutoTune_Heli::updating_angle_p_up_all(AxisType test_axis)
         // if a max gain frequency was found then set the start of the dwells to that freq otherwise start at min frequency
         if (!is_zero(sweep_tgt.maxgain.freq)) {
             next_test_freq = constrain_float(sweep_tgt.maxgain.freq, min_sweep_freq, max_sweep_freq);
+            freq_max = next_test_freq;
+            sp_prev_gain = sweep_tgt.maxgain.gain;
+            phase_max = sweep_tgt.maxgain.phase;
+            found_max_gain_freq = true;            
         } else {
             next_test_freq = min_sweep_freq;            
         }
@@ -1228,14 +1241,16 @@ void AC_AutoTune_Heli::set_gains_post_tune(AxisType test_axis)
 // FF is adjusted until rate requested is achieved
 void AC_AutoTune_Heli::updating_rate_ff_up(float &tune_ff, sweep_info &test_data, float &next_freq)
 {
+    float tune_tgt = 0.8;
+    float tune_tol = 0.025;
     next_freq = test_data.freq;
-    if (test_data.gain < 0.90 || test_data.gain > 0.95) {
+    if (test_data.gain < tune_tgt - tune_tol || test_data.gain > tune_tgt + tune_tol) {
         if (tune_ff > 0.0f) {
-            tune_ff =  0.925f * tune_ff / constrain_float(test_data.gain, 0.75, 1.25);  //keep changes less than 25%
+            tune_ff =  tune_ff * constrain_float(tune_tgt / test_data.gain, 0.75, 1.25);  //keep changes less than 25%
         } else {
             tune_ff = 0.03f;
         }
-    } else if (test_data.gain >= 0.90 && test_data.gain <= 0.95) {
+    } else if (test_data.gain >= tune_tgt - tune_tol && test_data.gain <= tune_tgt + tune_tol) {
         counter = AUTOTUNE_SUCCESS_COUNT;
         // reset next_freq for next test
         next_freq = 0.0f;
@@ -1324,7 +1339,7 @@ void AC_AutoTune_Heli::updating_angle_p_up(float &tune_p, sweep_info &test_data,
             next_freq = test_data.freq + test_freq_incr;
             return;
         // Gain is expected to continue decreasing past gain peak. declare max gain freq found and refine search.
-        } else if (test_data.gain < 0.9f * sp_prev_gain) {
+        } else if (test_data.gain < 0.95f * sp_prev_gain) {
             found_max_gain_freq = true;
             next_freq = freq_max + 0.5 * test_freq_incr;
             return;

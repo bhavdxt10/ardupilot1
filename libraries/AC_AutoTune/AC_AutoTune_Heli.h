@@ -50,7 +50,7 @@ protected:
     void backup_gains_and_initialise() override;
 
     // load gains
-    void load_gain_set(AxisType s_axis, float rate_p, float rate_i, float rate_d, float rate_ff, float angle_p, float max_accel, float rate_fltt, float rate_flte, float smax);
+    void load_gain_set(AxisType s_axis, float rate_p, float rate_i, float rate_d, float rate_ff, float angle_p, float max_accel, float rate_fltt, float rate_flte, float smax, float max_rate);
 
     // switch to use original gains
     void load_orig_gains() override;
