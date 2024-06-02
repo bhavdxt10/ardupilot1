@@ -145,12 +145,12 @@ void AC_AutoTune_Heli::test_init()
             start_freq = next_test_freq;
         }
         stop_freq = start_freq;
-        filter_freq = 4.0f/M_2PI;
+        filter_freq = start_freq;
         
         attitude_control->bf_feedforward(false);
         attitude_control->use_sqrt_controller(false);
-        attitude_control->use_sqrt_controller(true); // invoke rate and acceleration limits to provide square wave rate response.
-        freq_resp_amplitude = 10.0f;  // increase amplitude with limited rate to get desired square wave rate response
+//        attitude_control->use_sqrt_controller(true); // invoke rate and acceleration limits to provide square wave rate response.
+//        freq_resp_amplitude = 10.0f;  // increase amplitude with limited rate to get desired square wave rate response
         // variables needed to initialize frequency response object and test method
         resp_type = AC_AutoTune_FreqResp::ResponseType::RATE;
         calc_type = RFF;
@@ -536,11 +536,13 @@ void AC_AutoTune_Heli::load_test_gains()
             rate_p = tune_roll_rp;
             rate_d = tune_roll_rd;
         }
-        if (tune_type == RFF_UP) {
+/*        if (tune_type == RFF_UP) {
             rate_test_max = 5.0f;
         } else {
             rate_test_max = orig_roll_rate;
         }
+*/
+        rate_test_max = orig_roll_rate;
         load_gain_set(ROLL, rate_p, rate_i, rate_d, tune_roll_rff, tune_roll_sp, tune_roll_accel, orig_roll_fltt, 0.0f, 0.0f, rate_test_max);
         break;
     case PITCH:
@@ -557,11 +559,13 @@ void AC_AutoTune_Heli::load_test_gains()
             rate_p = tune_pitch_rp;
             rate_d = tune_pitch_rd;
         }
-        if (tune_type == RFF_UP) {
+/*        if (tune_type == RFF_UP) {
             rate_test_max = 5.0f;
         } else {
             rate_test_max = orig_pitch_rate;
         }
+*/
+        rate_test_max = orig_pitch_rate;
         load_gain_set(PITCH, rate_p, rate_i, rate_d, tune_pitch_rff, tune_pitch_sp, tune_pitch_accel, orig_pitch_fltt, 0.0f, 0.0f, rate_test_max);
         break;
     case YAW:
@@ -572,11 +576,13 @@ void AC_AutoTune_Heli::load_test_gains()
             // freeze integrator to hold trim by making i term small during rate controller tuning
             rate_i = 0.01f * orig_yaw_ri;
         }
-        if (tune_type == RFF_UP) {
+/*        if (tune_type == RFF_UP) {
             rate_test_max = 5.0f;
         } else {
             rate_test_max = orig_yaw_rate;
         }
+*/
+        rate_test_max = orig_yaw_rate;
         load_gain_set(YAW, tune_yaw_rp, rate_i, tune_yaw_rd, tune_yaw_rff, tune_yaw_sp, tune_yaw_accel, orig_yaw_fltt, tune_yaw_rLPF, 0.0f, rate_test_max);
         break;
     }
@@ -987,8 +993,10 @@ void AC_AutoTune_Heli::dwell_test_run(sweep_info &test_data)
             } else {
                 if (test_calc_type == RFF) {
                     test_data.freq = test_start_freq;
-                    test_data.gain = rff_gain;
-                    test_data.phase = 10.0f;
+//                    test_data.gain = rff_gain;
+                    test_data.gain = dwell_gain_tgt;
+//                    test_data.phase = 10.0f;
+                    test_data.phase = dwell_phase_tgt;
                 } else {
                     test_data.freq = test_start_freq;
                     test_data.gain = dwell_gain_tgt;
