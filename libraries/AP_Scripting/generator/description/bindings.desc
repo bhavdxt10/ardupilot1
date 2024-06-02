@@ -471,6 +471,12 @@ userdata Parameter method set_default boolean float'skip_check
 include AP_Scripting/AP_Scripting_SerialDevice.h depends AP_SCRIPTING_SERIALDEVICE_ENABLED
 ap_object AP_Scripting_SerialDevice::Port depends AP_SCRIPTING_SERIALDEVICE_ENABLED
 ap_object AP_Scripting_SerialDevice::Port method get_protocol_index uint8_t
+ap_object AP_Scripting_SerialDevice::Port method device_read int16_t
+ap_object AP_Scripting_SerialDevice::Port method device_read rename read
+ap_object AP_Scripting_SerialDevice::Port method device_write int32_t uint8_t'skip_check
+ap_object AP_Scripting_SerialDevice::Port method device_write rename write
+ap_object AP_Scripting_SerialDevice::Port method device_available int32_t
+ap_object AP_Scripting_SerialDevice::Port method device_available rename available
 
 include AP_Scripting/AP_Scripting.h
 singleton AP_Scripting rename scripting

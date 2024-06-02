@@ -1161,6 +1161,20 @@ function AP_HAL__I2CDevice_ud:set_retries(retries) end
 ---@class (exact) AP_Scripting_SerialDevice__Port_ud
 local AP_Scripting_SerialDevice__Port_ud = {}
 
+-- Returns the number of bytes available for the script to read (that have been
+-- written by the protocol).
+---@return integer -- bytes available
+function AP_Scripting_SerialDevice__Port_ud:available() end
+
+-- Writes one byte (for the protocol to read).
+---@param value integer -- byte to write
+---@return integer -- 1 if success, 0 if failure
+function AP_Scripting_SerialDevice__Port_ud:write(value) end
+
+-- Reads one byte (written by the protocol).
+---@return integer -- byte read, or -1 if none available
+function AP_Scripting_SerialDevice__Port_ud:read() end
+
 -- Returns the index of the protocol that this device is connected to,
 -- i.e. the value of `SCR_SER_Dn_PRO`.
 ---@return integer -- protocol index

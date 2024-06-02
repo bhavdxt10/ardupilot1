@@ -43,6 +43,36 @@ void AP_Scripting_SerialDevice::Port::init(void)
     begin(1000000, 0, 0); // assume 1MBaud rate even though it's a bit meaningless
 }
 
+int16_t AP_Scripting_SerialDevice::Port::device_read(void)
+{
+    WITH_SEMAPHORE(sem);
+    if (writebuffer) {
+        uint8_t c;
+        if (writebuffer->read(&c, 1)) {
+            return c;
+        }
+    }
+    return -1;
+}
+
+int32_t AP_Scripting_SerialDevice::Port::device_write(uint8_t c)
+{
+    WITH_SEMAPHORE(sem);
+    if (readbuffer) {
+        return readbuffer->write(&c, 1);
+    }
+    return 0;
+}
+
+int32_t AP_Scripting_SerialDevice::Port::device_available(void)
+{
+    WITH_SEMAPHORE(sem);
+    if (writebuffer) {
+        return writebuffer->available();
+    }
+    return 0;
+}
+
 /*
   available space in outgoing buffer
  */
