@@ -963,6 +963,30 @@ bool Plane::flight_option_enabled(FlightOptions flight_option) const
     return g2.flight_options & flight_option;
 }
 
+#if AP_SCRIPTING_ENABLED
+// this implements the virtual function defined in AP_Vehicle for Plane to set the desired airspeed in m/s
+bool Plane::set_desired_airspeed(float airspeed_new)
+{
+    if (control_mode == &mode_guided || control_mode == &mode_auto) {
+        plane.new_airspeed_cm = constrain_float(airspeed_new, aparm.airspeed_min, aparm.airspeed_max) * 100.0f;
+        return true;
+    }
+    return false;
+}
+#endif
+
+#if AP_SCRIPTING_ENABLED
+// Helper function to let scripting set the guided mode loiter radius and direction
+bool Plane::set_guided_radius_and_direction(float radius, bool direction_is_ccw)
+{
+    if (control_mode == &plane.mode_guided) {
+        plane.mode_guided.set_radius_and_direction(radius, direction_is_ccw);
+        return true;
+    }
+    return false;
+}
+#endif
+
 #if AC_PRECLAND_ENABLED
 void Plane::precland_update(void)
 {

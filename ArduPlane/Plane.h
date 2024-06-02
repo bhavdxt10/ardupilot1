@@ -1045,6 +1045,10 @@ private:
     void update_flight_stage();
     void set_flight_stage(AP_FixedWing::FlightStage fs);
     bool flight_option_enabled(FlightOptions flight_option) const;
+#if AP_SCRIPTING_ENABLED
+    bool set_desired_airspeed(float airspeed_new) override;    // different from set_desired_speed() in rover and copter
+    bool set_guided_radius_and_direction(float radius, bool direction_is_ccw) override;
+#endif
 
     // navigation.cpp
     void loiter_angle_reset(void);
