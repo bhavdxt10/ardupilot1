@@ -2349,6 +2349,17 @@ function vehicle:nav_scripting_enable(param1) end
 ---@return boolean
 function vehicle:set_desired_speed(param1) end
 
+-- Set autopilot desired airspeed (Plane)
+---@param airspeed_new number -- new airspeed in m/s
+---@return boolean -- true if successful
+function vehicle:set_desired_airspeed(airspeed_new) end
+
+-- Set the guided mode radius and direction used for the final loiter at the target (Plane)
+---@return boolean -- true if successful
+---@param radius number
+---@param direction_is_ccw boolean
+function vehicle:set_guided_radius_and_direction(radius, direction_is_ccw) end
+
 -- desc
 ---@param param1 number
 ---@param param2 number
