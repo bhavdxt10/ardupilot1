@@ -19,12 +19,14 @@ public:
     AP_Int8 enable;
 
     void init(void);
+    void clear(void);
 
 public:
     class Port : public AP_SerialManager::RegisteredPort {
     public:
         friend class AP_Scripting_SerialDevice;
         void init(void);
+        void clear(void);
 
         uint8_t get_protocol_index(void) { return state.protocol; }
 
