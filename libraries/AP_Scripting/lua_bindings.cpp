@@ -726,6 +726,30 @@ int lua_get_CAN_device2(lua_State *L) {
 }
 #endif // AP_SCRIPTING_CAN_SENSOR_ENABLED
 
+#if AP_SCRIPTING_SERIALDEVICE_ENABLED
+int lua_get_serialdevice_port(lua_State *L) {
+    // Allow : and . access
+    const int arg_offset = (luaL_testudata(L, 1, "serial") != NULL) ? 1 : 0;
+
+    binding_argcheck(L, 1 + arg_offset);
+
+    const uint32_t port_num = get_uint32(L, 1 + arg_offset, 1, AP_SCRIPTING_SERIALDEVICE_NUM_PORTS);
+
+    auto *scripting = AP::scripting();
+    AP_Scripting_SerialDevice::Port *port = &scripting->_serialdevice.ports[port_num-1];
+
+    if (!scripting->_serialdevice.enable || port->state.protocol <= -1) {
+        // serial devices as a whole are disabled, or port doesn't have a valid protocol
+        return 0;
+    }
+
+    new_AP_Scripting_SerialDevice__Port(L);
+    *((AP_Scripting_SerialDevice::Port**)luaL_checkudata(L, -1, "AP_Scripting_SerialDevice::Port")) = port;
+
+    return 1;
+}
+#endif // AP_SCRIPTING_SERIALDEVICE_ENABLED
+
 /*
   directory listing, return table of files in a directory
  */

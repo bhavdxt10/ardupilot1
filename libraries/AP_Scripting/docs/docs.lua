@@ -1157,6 +1157,15 @@ function AP_HAL__I2CDevice_ud:write_register(register_num, value) end
 ---@param retries integer
 function AP_HAL__I2CDevice_ud:set_retries(retries) end
 
+-- Serial device object
+---@class (exact) AP_Scripting_SerialDevice__Port_ud
+local AP_Scripting_SerialDevice__Port_ud = {}
+
+-- Returns the index of the protocol that this device is connected to,
+-- i.e. the value of `SCR_SER_Dn_PRO`.
+---@return integer -- protocol index
+function AP_Scripting_SerialDevice__Port_ud:get_protocol_index() end
+
 
 -- Serial driver object
 ---@class (exact) AP_HAL__UARTDriver_ud
@@ -2038,6 +2047,12 @@ serial = {}
 ---@return AP_HAL__UARTDriver_ud|nil -- the requested UART instance available for scripting, or nil if none.
 function serial:find_serial(instance) end
 
+-- Returns the serial device instance that allows script simulation of a device.
+-- Device number `n` connects to the protocol set by parameter `SCR_SER_Dn_PRO`.
+-- Returns nil if `SCR_SER_EN` is disabled, or the protocol parameter is None or doesn't exist.
+---@param device_num integer -- the 1-based index of the device to return
+---@return AP_Scripting_SerialDevice__Port_ud|nil -- the requested device instance, or nil if not available.
+function serial:get_device_port(device_num) end
 
 -- desc
 rc = {}

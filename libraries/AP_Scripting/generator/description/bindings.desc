@@ -403,6 +403,7 @@ ap_object AP_HAL::UARTDriver method set_flow_control void AP_HAL::UARTDriver::fl
 singleton AP_SerialManager rename serial
 singleton AP_SerialManager depends HAL_GCS_ENABLED
 singleton AP_SerialManager method find_serial AP_HAL::UARTDriver AP_SerialManager::SerialProtocol_Scripting'literal uint8_t'skip_check
+singleton AP_SerialManager manual get_device_port lua_get_serialdevice_port 1 1 depends AP_SCRIPTING_SERIALDEVICE_ENABLED
 
 include AP_Baro/AP_Baro.h
 singleton AP_Baro depends (!defined(HAL_BUILD_AP_PERIPH) || defined(HAL_PERIPH_ENABLE_BARO))
@@ -466,6 +467,10 @@ userdata Parameter method set boolean float'skip_check
 userdata Parameter method set_and_save boolean float'skip_check
 userdata Parameter method configured boolean
 userdata Parameter method set_default boolean float'skip_check
+
+include AP_Scripting/AP_Scripting_SerialDevice.h depends AP_SCRIPTING_SERIALDEVICE_ENABLED
+ap_object AP_Scripting_SerialDevice::Port depends AP_SCRIPTING_SERIALDEVICE_ENABLED
+ap_object AP_Scripting_SerialDevice::Port method get_protocol_index uint8_t
 
 include AP_Scripting/AP_Scripting.h
 singleton AP_Scripting rename scripting
