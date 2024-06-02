@@ -1249,7 +1249,7 @@ void AC_AutoTune_Heli::set_gains_post_tune(AxisType test_axis)
 // FF is adjusted until rate requested is achieved
 void AC_AutoTune_Heli::updating_rate_ff_up(float &tune_ff, sweep_info &test_data, float &next_freq)
 {
-    float tune_tgt = 0.8;
+    float tune_tgt = 0.95;
     float tune_tol = 0.025;
     next_freq = test_data.freq;
     if (test_data.gain < tune_tgt - tune_tol || test_data.gain > tune_tgt + tune_tol) {
