@@ -748,6 +748,46 @@ int lua_get_serialdevice_port(lua_State *L) {
 
     return 1;
 }
+
+int AP_Scripting_SerialDevice__Port__readstring(lua_State *L)
+{
+    binding_argcheck(L, 2);
+
+    AP_Scripting_SerialDevice::Port * port = *check_AP_Scripting_SerialDevice__Port(L, 1);
+
+    // create a buffer sized to hold the number of bytes the user wants to read
+    luaL_Buffer b;
+    const uint16_t req_bytes = get_uint16_t(L, 2);
+    uint8_t *data = (uint8_t *)luaL_buffinitsize(L, &b, req_bytes);
+
+    // read up to that number of bytes
+    const uint32_t read_bytes = port->device_read(data, req_bytes);
+
+    // push the buffer as a string, truncated to the number of bytes that were actually read
+    luaL_pushresultsize(&b, read_bytes);
+
+    return 1;
+}
+
+int AP_Scripting_SerialDevice__Port__writestring(lua_State *L)
+{
+    binding_argcheck(L, 2);
+
+    AP_Scripting_SerialDevice::Port * port = *check_AP_Scripting_SerialDevice__Port(L, 1);
+
+    // get the bytes the user wants to write, along with their length
+    size_t req_bytes;
+    const char *data = lua_tolstring(L, 2, &req_bytes);
+
+    // write up to that number of bytes
+    const uint32_t written_bytes = port->device_write((const uint8_t*)data, req_bytes);
+
+    // return the number of bytes that were actually written
+    lua_pushinteger(L, written_bytes);
+
+    return 1;
+}
+
 #endif // AP_SCRIPTING_SERIALDEVICE_ENABLED
 
 /*

@@ -69,11 +69,29 @@ int16_t AP_Scripting_SerialDevice::Port::device_read(void)
     return -1;
 }
 
+int32_t AP_Scripting_SerialDevice::Port::device_read(uint8_t *data, uint32_t len)
+{
+    WITH_SEMAPHORE(sem);
+    if (writebuffer) {
+        return writebuffer->read(data, len);
+    }
+    return 0;
+}
+
 int32_t AP_Scripting_SerialDevice::Port::device_write(uint8_t c)
 {
     WITH_SEMAPHORE(sem);
     if (readbuffer) {
         return readbuffer->write(&c, 1);
+    }
+    return 0;
+}
+
+int32_t AP_Scripting_SerialDevice::Port::device_write(const uint8_t *data, uint32_t len)
+{
+    WITH_SEMAPHORE(sem);
+    if (readbuffer) {
+        return readbuffer->write(data, len);
     }
     return 0;
 }

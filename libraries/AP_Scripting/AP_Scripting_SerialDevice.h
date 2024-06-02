@@ -31,7 +31,9 @@ public:
         uint8_t get_protocol_index(void) { return state.protocol; }
 
         int16_t device_read(void);
+        int32_t device_read(uint8_t *data, uint32_t len);
         int32_t device_write(uint8_t c);
+        int32_t device_write(const uint8_t *data, uint32_t len);
         int32_t device_available(void);
 
     private:

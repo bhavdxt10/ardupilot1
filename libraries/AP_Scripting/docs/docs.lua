@@ -1180,6 +1180,19 @@ function AP_Scripting_SerialDevice__Port_ud:read() end
 ---@return integer -- protocol index
 function AP_Scripting_SerialDevice__Port_ud:get_protocol_index() end
 
+-- Writes a string (for the protocol to read). The number of bytes actually
+-- written, i.e. the length of the written prefix of the data, is returned.
+-- It may be 0 up to the length of the data.
+---@param data string -- string of bytes to write
+---@return integer -- number of bytes actually written, which may be 0
+function AP_Scripting_SerialDevice__Port_ud:writestring(data) end
+
+-- Reads up to `count` bytes (written by the protocol) and returns as a string.
+-- No bytes may be read, in which case a 0-length string is returned.
+---@param count integer -- maximum number of bytes to read
+---@return string -- bytes actually read, which may be 0-length
+function AP_Scripting_SerialDevice__Port_ud:readstring(count) end
+
 
 -- Serial driver object
 ---@class (exact) AP_HAL__UARTDriver_ud
