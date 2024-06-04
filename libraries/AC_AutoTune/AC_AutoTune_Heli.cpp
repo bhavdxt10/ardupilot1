@@ -1252,11 +1252,26 @@ void AC_AutoTune_Heli::updating_rate_ff_up(float &tune_ff, sweep_info &test_data
     float tune_tgt = 0.95;
     float tune_tol = 0.025;
     next_freq = test_data.freq;
-    if (test_data.gain < tune_tgt - tune_tol || test_data.gain > tune_tgt + tune_tol) {
-        if (tune_ff > 0.0f) {
-            tune_ff =  tune_ff * constrain_float(tune_tgt / test_data.gain, 0.75, 1.25);  //keep changes less than 25%
+
+    // handle axes where FF gain is initially zero
+    if (test_data.gain < tune_tgt - tune_tol && !is_positive(tune_ff)) {
+        tune_ff = 0.03f;
+        return;
+    }
+
+    if (test_data.gain < tune_tgt - 0.2 || test_data.gain > tune_tgt + 0.2) {
+        tune_ff =  tune_ff * constrain_float(tune_tgt / test_data.gain, 0.75, 1.25);  //keep changes less than 25%
+    } else if (test_data.gain < tune_tgt - 0.1 || test_data.gain > tune_tgt + 0.1) {
+        if (test_data.gain < tune_tgt - 0.1) {
+            tune_ff *= 1.05;
         } else {
-            tune_ff = 0.03f;
+            tune_ff *= 0.95;
+        }
+    } else if (test_data.gain < tune_tgt - tune_tol || test_data.gain > tune_tgt + tune_tol) {
+        if (test_data.gain < tune_tgt - tune_tol) {
+            tune_ff *= 1.02;
+        } else {
+            tune_ff *= 0.98;
         }
     } else if (test_data.gain >= tune_tgt - tune_tol && test_data.gain <= tune_tgt + tune_tol) {
         counter = AUTOTUNE_SUCCESS_COUNT;
