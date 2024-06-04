@@ -156,7 +156,6 @@ private:
         RATE    = 0,
         ANGLE   = 1,
         DRB     = 2,
-        RFF     = 3,
     };
 
     enum FreqRespInput {
@@ -302,27 +301,6 @@ private:
     // allow tracking of cycles complete for frequency response object
     bool cycle_complete_tgt;
     bool cycle_complete_mtr;
-
-    //store response data in ring buffer
-    struct rff_info {
-        float input;
-        float response;
-    };
-    float input_sum;
-    float response_sum;
-
-    // rff gain calc for dwell
-    float rff_input_sum;
-    float rff_response_sum;
-    float rff_gain;
-    bool rff_on_rate_limit;
-    bool rff_full_cycle;
-
-    // Buffer object for measured peak data
-    ObjectBuffer<rff_info> *rff_info_buffer;
-    
-    // Push data into rff_info buffer object
-    void push_to_rff_info_buffer(float input, float response, float &input_avg, float &response_avg);
 
     Chirp chirp_input;
 };
