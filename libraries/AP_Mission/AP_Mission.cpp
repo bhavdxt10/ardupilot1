@@ -16,6 +16,7 @@
 #include <AP_Vehicle/AP_Vehicle_Type.h>
 #include <GCS_MAVLink/GCS.h>
 #include <RC_Channel/RC_Channel_config.h>
+#include <AC_Fence/AC_Fence.h>
 
 const AP_Param::GroupInfo AP_Mission::var_info[] = {
 
@@ -447,6 +448,10 @@ bool AP_Mission::start_command(const Mission_Command& cmd)
     case MAV_CMD_VIDEO_START_CAPTURE:
     case MAV_CMD_VIDEO_STOP_CAPTURE:
         return start_command_camera(cmd);
+#endif
+#if AP_FENCE_ENABLED
+    case MAV_CMD_DO_FENCE_ENABLE:
+        return start_command_fence(cmd);
 #endif
     case MAV_CMD_DO_PARACHUTE:
         return start_command_parachute(cmd);
@@ -1230,7 +1235,8 @@ MAV_MISSION_RESULT AP_Mission::mavlink_int_to_mission_cmd(const mavlink_mission_
         break;
 
     case MAV_CMD_DO_FENCE_ENABLE:                       // MAV ID: 207
-        cmd.p1 = packet.param1;                         // action 0=disable, 1=enable
+        cmd.p1 = packet.param1;                         // action 0=disable, 1=enable, 2=disable floor
+        // packet.param2;                               // bitmask see FENCE_TYPE enum
         break;
 
     case MAV_CMD_DO_AUX_FUNCTION:
@@ -1743,7 +1749,7 @@ bool AP_Mission::mission_cmd_to_mavlink_int(const AP_Mission::Mission_Command& c
         break;
 
     case MAV_CMD_DO_FENCE_ENABLE:                       // MAV ID: 207
-        packet.param1 = cmd.p1;                         // action 0=disable, 1=enable
+        packet.param1 = cmd.p1;                         // action 0=disable, 1=enable, 2=disable floor, 3=enable except floor
         break;
 
     case MAV_CMD_DO_PARACHUTE:                          // MAV ID: 208

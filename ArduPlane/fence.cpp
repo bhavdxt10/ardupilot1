@@ -9,8 +9,16 @@ void Plane::fence_check()
 {
     const uint8_t orig_breaches = fence.get_breaches();
 
+    uint16_t mission_id = plane.mission.get_current_nav_cmd().id;
+    bool is_in_landing = plane.flight_stage == AP_FixedWing::FlightStage::LAND
+#if HAL_QUADPLANE_ENABLED
+                         || control_mode->mode_number() == Mode::Number::QLAND
+                         || control_mode->mode_number() == Mode::Number::QRTL
+#endif
+                         || (plane.is_land_command(mission_id) && plane.mission.state() == AP_Mission::MISSION_RUNNING);
+
     // check for new breaches; new_breaches is bitmask of fence types breached
-    const uint8_t new_breaches = fence.check();
+    const uint8_t new_breaches = fence.check(is_in_landing);
 
     if (!fence.enabled()) {
         // Switch back to the chosen control mode if still in
@@ -50,7 +58,7 @@ void Plane::fence_check()
     }
 
     if (new_breaches) {
-        GCS_SEND_TEXT(MAV_SEVERITY_NOTICE, "Fence Breached");
+        fence.print_fence_message("breached", new_breaches);
 
         // if the user wants some kind of response and motors are armed
         const uint8_t fence_act = fence.get_action();
@@ -115,7 +123,8 @@ void Plane::fence_check()
         }
 
         LOGGER_WRITE_ERROR(LogErrorSubsystem::FAILSAFE_FENCE, LogErrorCode(new_breaches));
-    } else if (orig_breaches) {
+    } else if (orig_breaches && fence.get_breaches() == 0) {
+        GCS_SEND_TEXT(MAV_SEVERITY_NOTICE, "Fence breach cleared");
         // record clearing of breach
         LOGGER_WRITE_ERROR(LogErrorSubsystem::FAILSAFE_FENCE, LogErrorCode::ERROR_RESOLVED);
     }

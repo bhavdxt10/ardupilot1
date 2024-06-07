@@ -144,21 +144,6 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
     case MAV_CMD_DO_LAND_START:
         break;
 
-    case MAV_CMD_DO_FENCE_ENABLE:
-#if AP_FENCE_ENABLED
-        if (cmd.p1 == 0) { // disable fence
-            plane.fence.enable(false);
-            gcs().send_text(MAV_SEVERITY_INFO, "Fence disabled");
-        } else if (cmd.p1 == 1) { // enable fence
-            plane.fence.enable(true);
-            gcs().send_text(MAV_SEVERITY_INFO, "Fence enabled");
-        } else if (cmd.p1 == 2) { // disable fence floor only
-            plane.fence.disable_floor();
-            gcs().send_text(MAV_SEVERITY_INFO, "Fence floor disabled");
-        }
-#endif
-        break;
-
     case MAV_CMD_DO_AUTOTUNE_ENABLE:
         autotune_enable(cmd.p1);
         break;
@@ -421,7 +406,7 @@ void Plane::do_land(const AP_Mission::Mission_Command& cmd)
         auto_state.takeoff_pitch_cd = 1000;
     }
 
-    // zero rangefinder state, start to accumulate good samples now
+    // zero rangefinder state, start to accumulate good samples nowq
     memset(&rangefinder_state, 0, sizeof(rangefinder_state));
 
     landing.do_land(cmd, relative_altitude);
@@ -430,10 +415,6 @@ void Plane::do_land(const AP_Mission::Mission_Command& cmd)
         // if we were in an abort we need to explicitly move out of the abort state, as it's sticky
         set_flight_stage(AP_FixedWing::FlightStage::LAND);
     }
-
-#if AP_FENCE_ENABLED
-    plane.fence.auto_disable_fence_for_landing();
-#endif
 }
 
 #if HAL_QUADPLANE_ENABLED
