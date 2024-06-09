@@ -147,9 +147,7 @@ void AC_AutoTune_Heli::test_init()
         filter_freq = start_freq;
         
         attitude_control->bf_feedforward(false);
-        attitude_control->use_sqrt_controller(false);
-//        attitude_control->use_sqrt_controller(true); // invoke rate and acceleration limits to provide square wave rate response.
-//        freq_resp_amplitude = 10.0f;  // increase amplitude with limited rate to get desired square wave rate response
+
         // variables needed to initialize frequency response object and test method
         resp_type = AC_AutoTune_FreqResp::ResponseType::RATE;
         calc_type = RATE;
@@ -171,7 +169,6 @@ void AC_AutoTune_Heli::test_init()
         filter_freq = start_freq;
 
         attitude_control->bf_feedforward(false);
-        attitude_control->use_sqrt_controller(false);
 
         // variables needed to initialize frequency response object and test method
         resp_type = AC_AutoTune_FreqResp::ResponseType::RATE;
@@ -201,7 +198,6 @@ void AC_AutoTune_Heli::test_init()
         filter_freq = start_freq;
 
         attitude_control->bf_feedforward(false);
-        attitude_control->use_sqrt_controller(false);
 
         // variables needed to initialize frequency response object and test method
         resp_type = AC_AutoTune_FreqResp::ResponseType::RATE;
@@ -223,7 +219,6 @@ void AC_AutoTune_Heli::test_init()
         }
         filter_freq = start_freq;
         attitude_control->bf_feedforward(false);
-        attitude_control->use_sqrt_controller(false);
 
         // variables needed to initialize frequency response object and test method
         resp_type = AC_AutoTune_FreqResp::ResponseType::ANGLE;
@@ -522,18 +517,17 @@ void AC_AutoTune_Heli::load_test_gains()
     float rate_p, rate_i, rate_d, rate_test_max, accel_test_max;
     switch (axis) {
     case ROLL:
-        rate_test_max = orig_roll_rate;
-        accel_test_max = tune_roll_accel;
+
+        if (tune_type == TUNE_CHECK) {
+            rate_test_max = orig_roll_rate;
+            accel_test_max = tune_roll_accel;
+        } else {
+            // have attitude controller use accel and rate limit parameter
+            rate_test_max = rate_max;
+            accel_test_max = accel_max;
+        }
         if (tune_type == SP_UP || tune_type == TUNE_CHECK) {
             rate_i = tune_roll_rff*AUTOTUNE_FFI_RATIO_FINAL;
-            // have attitude controller use rate limit if non-zero
-            if (is_positive(rate_max)) {
-                rate_test_max = rate_max;
-            }
-            // have attitude controller use accel limit if non-zero
-            if (is_positive(accel_max)) {
-                accel_test_max = accel_max;
-            }
         } else {
             // freeze integrator to hold trim by making i term small during rate controller tuning
             rate_i = 0.01f * orig_roll_ri;
@@ -548,18 +542,16 @@ void AC_AutoTune_Heli::load_test_gains()
         load_gain_set(ROLL, rate_p, rate_i, rate_d, tune_roll_rff, tune_roll_sp, accel_test_max, orig_roll_fltt, 0.0f, 0.0f, rate_test_max);
         break;
     case PITCH:
-        rate_test_max = orig_pitch_rate;
-        accel_test_max = tune_pitch_accel;
+        if (tune_type == TUNE_CHECK) {
+            rate_test_max = orig_pitch_rate;
+            accel_test_max = tune_pitch_accel;
+        } else {
+            // have attitude controller use accel and rate limit parameter
+            rate_test_max = rate_max;
+            accel_test_max = accel_max;
+        }
         if (tune_type == SP_UP || tune_type == TUNE_CHECK) {
             rate_i = tune_pitch_rff*AUTOTUNE_FFI_RATIO_FINAL;
-            // have attitude controller use rate limit if non-zero
-            if (is_positive(rate_max)) {
-                rate_test_max = rate_max;
-            }
-            // have attitude controller use accel limit if non-zero
-            if (is_positive(accel_max)) {
-                accel_test_max = accel_max;
-            }
         } else {
             // freeze integrator to hold trim by making i term small during rate controller tuning
             rate_i = 0.01f * orig_pitch_ri;
@@ -575,18 +567,16 @@ void AC_AutoTune_Heli::load_test_gains()
         break;
     case YAW:
     case YAW_D:
-        rate_test_max = orig_yaw_rate;
-        accel_test_max = tune_yaw_accel;
+        if (tune_type == TUNE_CHECK) {
+            rate_test_max = orig_yaw_rate;
+            accel_test_max = tune_yaw_accel;
+        } else {
+            // have attitude controller use accel and rate limit parameter
+            rate_test_max = rate_max;
+            accel_test_max = accel_max;
+        }
         if (tune_type == SP_UP || tune_type == TUNE_CHECK) {
             rate_i = tune_yaw_rp*AUTOTUNE_YAW_PI_RATIO_FINAL;
-            // have attitude controller use rate limit if non-zero
-            if (is_positive(rate_max)) {
-                rate_test_max = rate_max;
-            }
-            // have attitude controller use accel limit if non-zero
-            if (is_positive(accel_max)) {
-                accel_test_max = accel_max;
-            }
         } else {
             // freeze integrator to hold trim by making i term small during rate controller tuning
             rate_i = 0.01f * orig_yaw_ri;
@@ -819,27 +809,6 @@ void AC_AutoTune_Heli::dwell_test_run(sweep_info &test_data)
     if (settle_time == 0) {
         target_angle_cd = -chirp_input.update((now - dwell_start_time_ms) * 0.001, tgt_attitude * 5730.0f);
         dwell_freq = chirp_input.get_frequency_rads();
-        // limit requested angle based on calculated max accel and max rate if non zero parameters are set
-        if (test_calc_type == RATE) {
-            // apply rate limit for RFF, RP_UP and RD_UP test types
-            float peak_rate = dwell_freq * tgt_attitude;
-            float peak_accel = sq(dwell_freq) * tgt_attitude;
-            float rate_knockdown = 1.0f;
-            float accel_knockdown = 1.0f;
-            // reduce target angle by ratio of peak rate to max rate
-            if (is_positive(rate_max) && peak_rate > rate_max) {
-                rate_knockdown = rate_max / peak_rate;
-            }
-            // reduce target angle by ratio of peak accel to max accel
-            if (is_positive(accel_max) && peak_accel > accel_max) {
-                accel_knockdown = accel_max / peak_accel;
-            }
-            if (rate_knockdown < accel_knockdown) {
-                target_angle_cd *= rate_knockdown;
-            } else if (accel_knockdown < rate_knockdown)  {
-                target_angle_cd *= accel_knockdown;
-            }
-        }
         const Vector2f att_fdbk {
             -5730.0f * vel_hold_gain * velocity_bf.y,
             5730.0f * vel_hold_gain * velocity_bf.x
