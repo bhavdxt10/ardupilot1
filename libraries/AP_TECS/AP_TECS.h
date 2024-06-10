@@ -419,6 +419,9 @@ private:
     // need to reset on next loop
     bool _need_reset;
 
+    // Checks if we reset at the beginning of takeoff.
+    bool _reset_after_takeoff{false};
+
     float _SKE_weighting;
 
     AP_Int8 _use_synthetic_airspeed;
@@ -478,4 +481,8 @@ private:
 
     // current time constant
     float timeConstant(void) const;
+
+    // Reply if we are in the first stage of a takeoff
+    // Corresponds to the initial full-throttle segment
+    bool _in_takeoff_first_stage(void);
 };
