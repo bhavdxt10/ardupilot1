@@ -160,6 +160,41 @@ const AP_Param::GroupInfo AP_Scripting::var_info[] = {
     // @RebootRequired: True
     // @User: Advanced
     AP_GROUPINFO("THD_PRIORITY", 14, AP_Scripting, _thd_priority, uint8_t(ThreadPriority::NORMAL)),
+
+#if AP_SCRIPTING_SERIALDEVICE_ENABLED
+    // @Param: SER_EN
+    // @DisplayName: Scripting serial device enable
+    // @Description: Enable scripting serial devices
+    // @Values: 0:Disabled, 1:Enabled
+    // @RebootRequired: True
+    // @User: Advanced
+    AP_GROUPINFO_FLAGS("SER_EN", 15,  AP_Scripting, _serialdevice.enable, 0, AP_PARAM_FLAG_ENABLE),
+
+    // @Param: SER_D1_PRO
+    // @DisplayName: Serial protocol of scripting serial device
+    // @Description: Serial protocol of scripting serial device
+    // @CopyFieldsFrom: SERIAL1_PROTOCOL
+    // @RebootRequired: True
+    // @User: Advanced
+    AP_GROUPINFO("SER_D1_PRO", 16,  AP_Scripting, _serialdevice.ports[0].state.protocol, -1),
+
+#if AP_SCRIPTING_SERIALDEVICE_NUM_PORTS > 1
+    // @Param: SER_D2_PRO
+    // @DisplayName: Serial protocol of scripting serial device
+    // @Description: Serial protocol of scripting serial device
+    // @CopyFieldsFrom: SCR_SER_D1_PRO
+    AP_GROUPINFO("SER_D2_PRO", 17,  AP_Scripting, _serialdevice.ports[1].state.protocol, -1),
+#endif
+
+#if AP_SCRIPTING_SERIALDEVICE_NUM_PORTS > 2
+    // @Param: SER_D3_PRO
+    // @DisplayName: Serial protocol of scripting serial device
+    // @Description: Serial protocol of scripting serial device
+    // @CopyFieldsFrom: SCR_SER_D1_PRO
+    AP_GROUPINFO("SER_D3_PRO", 18,  AP_Scripting, _serialdevice.ports[2].state.protocol, -1),
+#endif
+#endif // AP_SCRIPTING_SERIALDEVICE_ENABLED
+
     
     AP_GROUPEND
 };
@@ -220,6 +255,16 @@ void AP_Scripting::init(void) {
     }
 }
 
+#if AP_SCRIPTING_SERIALDEVICE_ENABLED
+void AP_Scripting::init_serialdevice_ports(void) {
+    if (!_enable) {
+        return;
+    }
+
+    _serialdevice.init();
+}
+#endif
+
 #if HAL_GCS_ENABLED
 MAV_RESULT AP_Scripting::handle_command_int_packet(const mavlink_command_int_t &packet) {
     switch ((SCRIPTING_CMD)packet.param1) {
@@ -264,6 +309,11 @@ void AP_Scripting::thread(void) {
             GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "Scripting: %s", "Unable to allocate memory");
             _init_failed = true;
         } else {
+#if AP_SCRIPTING_SERIALDEVICE_ENABLED
+            // clear data in serial buffers that the script wasn't ready to
+            // receive
+            _serialdevice.clear();
+#endif
             // run won't return while scripting is still active
             lua->run();
 
@@ -298,6 +348,11 @@ void AP_Scripting::thread(void) {
             }
         }
 #endif // AP_NETWORKING_ENABLED
+
+#if AP_SCRIPTING_SERIALDEVICE_ENABLED
+        // clear data in serial buffers that hasn't been transmitted
+        _serialdevice.clear();
+#endif
         
         // Clear blocked commands
         {

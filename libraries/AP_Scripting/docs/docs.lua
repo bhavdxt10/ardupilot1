@@ -1190,6 +1190,42 @@ function AP_HAL__I2CDevice_ud:write_register(register_num, value) end
 ---@param retries integer
 function AP_HAL__I2CDevice_ud:set_retries(retries) end
 
+-- Serial device object
+---@class (exact) AP_Scripting_SerialDevice__Port_ud
+local AP_Scripting_SerialDevice__Port_ud = {}
+
+-- Returns the number of bytes available for the script to read (that have been
+-- written by the protocol).
+---@return integer -- bytes available
+function AP_Scripting_SerialDevice__Port_ud:available() end
+
+-- Writes one byte (for the protocol to read).
+---@param value integer -- byte to write
+---@return integer -- 1 if success, 0 if failure
+function AP_Scripting_SerialDevice__Port_ud:write(value) end
+
+-- Reads one byte (written by the protocol).
+---@return integer -- byte read, or -1 if none available
+function AP_Scripting_SerialDevice__Port_ud:read() end
+
+-- Returns the index of the protocol that this device is connected to,
+-- i.e. the value of `SCR_SER_Dn_PRO`.
+---@return integer -- protocol index
+function AP_Scripting_SerialDevice__Port_ud:get_protocol_index() end
+
+-- Writes a string (for the protocol to read). The number of bytes actually
+-- written, i.e. the length of the written prefix of the data, is returned.
+-- It may be 0 up to the length of the data.
+---@param data string -- string of bytes to write
+---@return integer -- number of bytes actually written, which may be 0
+function AP_Scripting_SerialDevice__Port_ud:writestring(data) end
+
+-- Reads up to `count` bytes (written by the protocol) and returns as a string.
+-- No bytes may be read, in which case a 0-length string is returned.
+---@param count integer -- maximum number of bytes to read
+---@return string -- bytes actually read, which may be 0-length
+function AP_Scripting_SerialDevice__Port_ud:readstring(count) end
+
 
 -- Serial driver object
 ---@class (exact) AP_HAL__UARTDriver_ud
@@ -2071,6 +2107,12 @@ serial = {}
 ---@return AP_HAL__UARTDriver_ud|nil -- the requested UART instance available for scripting, or nil if none.
 function serial:find_serial(instance) end
 
+-- Returns the serial device instance that allows script simulation of a device.
+-- Device number `n` connects to the protocol set by parameter `SCR_SER_Dn_PRO`.
+-- Returns nil if `SCR_SER_EN` is disabled, or the protocol parameter is None or doesn't exist.
+---@param device_num integer -- the 1-based index of the device to return
+---@return AP_Scripting_SerialDevice__Port_ud|nil -- the requested device instance, or nil if not available.
+function serial:get_device_port(device_num) end
 
 -- desc
 rc = {}

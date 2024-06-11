@@ -726,6 +726,70 @@ int lua_get_CAN_device2(lua_State *L) {
 }
 #endif // AP_SCRIPTING_CAN_SENSOR_ENABLED
 
+#if AP_SCRIPTING_SERIALDEVICE_ENABLED
+int lua_get_serialdevice_port(lua_State *L) {
+    // Allow : and . access
+    const int arg_offset = (luaL_testudata(L, 1, "serial") != NULL) ? 1 : 0;
+
+    binding_argcheck(L, 1 + arg_offset);
+
+    const uint32_t port_num = get_uint32(L, 1 + arg_offset, 1, AP_SCRIPTING_SERIALDEVICE_NUM_PORTS);
+
+    auto *scripting = AP::scripting();
+    AP_Scripting_SerialDevice::Port *port = &scripting->_serialdevice.ports[port_num-1];
+
+    if (!scripting->_serialdevice.enable || port->state.protocol <= -1) {
+        // serial devices as a whole are disabled, or port doesn't have a valid protocol
+        return 0;
+    }
+
+    new_AP_Scripting_SerialDevice__Port(L);
+    *((AP_Scripting_SerialDevice::Port**)luaL_checkudata(L, -1, "AP_Scripting_SerialDevice::Port")) = port;
+
+    return 1;
+}
+
+int AP_Scripting_SerialDevice__Port__readstring(lua_State *L)
+{
+    binding_argcheck(L, 2);
+
+    AP_Scripting_SerialDevice::Port * port = *check_AP_Scripting_SerialDevice__Port(L, 1);
+
+    // create a buffer sized to hold the number of bytes the user wants to read
+    luaL_Buffer b;
+    const uint16_t req_bytes = get_uint16_t(L, 2);
+    uint8_t *data = (uint8_t *)luaL_buffinitsize(L, &b, req_bytes);
+
+    // read up to that number of bytes
+    const uint32_t read_bytes = port->device_read(data, req_bytes);
+
+    // push the buffer as a string, truncated to the number of bytes that were actually read
+    luaL_pushresultsize(&b, read_bytes);
+
+    return 1;
+}
+
+int AP_Scripting_SerialDevice__Port__writestring(lua_State *L)
+{
+    binding_argcheck(L, 2);
+
+    AP_Scripting_SerialDevice::Port * port = *check_AP_Scripting_SerialDevice__Port(L, 1);
+
+    // get the bytes the user wants to write, along with their length
+    size_t req_bytes;
+    const char *data = lua_tolstring(L, 2, &req_bytes);
+
+    // write up to that number of bytes
+    const uint32_t written_bytes = port->device_write((const uint8_t*)data, req_bytes);
+
+    // return the number of bytes that were actually written
+    lua_pushinteger(L, written_bytes);
+
+    return 1;
+}
+
+#endif // AP_SCRIPTING_SERIALDEVICE_ENABLED
+
 /*
   directory listing, return table of files in a directory
  */
