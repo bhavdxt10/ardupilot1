@@ -1616,6 +1616,9 @@ analog = {}
 ---@return AP_HAL__AnalogSource_ud|nil
 function analog:channel() end
 
+-- desc
+---@return number
+function analog:mcu_temperature() end
 
 -- Control of general purpose input/output pins
 gpio = {}
