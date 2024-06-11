@@ -42,7 +42,10 @@ public:
                                             enum Rotation rotation);
 
     /* update accel and gyro state */
-    bool update() override;
+    bool update() override __RAMFUNC__;
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    void update_filters() override __RAMFUNC__;
+#endif
     void accumulate() override;
 
     /*

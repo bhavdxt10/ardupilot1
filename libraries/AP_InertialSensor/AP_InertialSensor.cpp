@@ -1880,6 +1880,7 @@ void AP_InertialSensor::update(void)
             _delta_velocity_valid[i] = false;
             _delta_angle_valid[i] = false;
         }
+
         for (uint8_t i=0; i<_backend_count; i++) {
             _backends[i]->update();
         }
@@ -1933,13 +1934,25 @@ void AP_InertialSensor::update(void)
         // set primary to first healthy accel and gyro
         for (uint8_t i=0; i<INS_MAX_INSTANCES; i++) {
             if (_gyro_healthy[i] && _use(i)) {
-                _primary_gyro = i;
+                _first_healthy_gyro = i;
+#if AP_AHRS_ENABLED
+                // ask AHRS for the true primary, might just be us though
+                _primary_gyro = AP::ahrs().get_primary_gyro_index();
+#else
+                _primary_gyro = _first_healthy_gyro;
+#endif
                 break;
             }
         }
         for (uint8_t i=0; i<INS_MAX_INSTANCES; i++) {
             if (_accel_healthy[i] && _use(i)) {
-                _primary_accel = i;
+                _first_healthy_accel = i;
+#if AP_AHRS_ENABLED
+                // ask AHRS for the true primary, might just be us though
+                _primary_accel = AP::ahrs().get_primary_accel_index();
+#else
+                _primary_accel = _first_healthy_accel;
+#endif
                 break;
             }
         }
@@ -2749,8 +2762,8 @@ void AP_InertialSensor::send_uart_data(void)
     data.length = sizeof(data);
     data.timestamp_us = AP_HAL::micros();
 
-    get_delta_angle(get_primary_gyro(), data.delta_angle, data.delta_angle_dt);
-    get_delta_velocity(get_primary_accel(), data.delta_velocity, data.delta_velocity_dt);
+    get_delta_angle(get_first_healthy_gyro(), data.delta_angle, data.delta_angle_dt);
+    get_delta_velocity(get_first_healthy_accel(), data.delta_velocity, data.delta_velocity_dt);
 
     data.counter = uart.counter++;
     data.crc = crc_xmodem((const uint8_t *)&data, sizeof(data)-sizeof(uint16_t));
@@ -2781,6 +2794,28 @@ void AP_InertialSensor::force_save_calibration(void)
         }
     }
 }
+
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+bool AP_InertialSensor::get_next_gyro_sample(Vector3f& gyro)
+{
+    if (!_cmutex) {
+        return false;
+    }
+
+    _cmutex->lock_and_wait(FUNCTOR_BIND_MEMBER(&AP_InertialSensor::gyro_samples_available, bool));
+    bool ret = _rate_loop_gyro_window.pop(gyro);
+    _cmutex->unlock();
+
+    return ret;
+}
+
+void AP_InertialSensor::update_backend_filters()
+{
+    for (uint8_t i=0; i<_backend_count; i++) {
+        _backends[i]->update_filters();
+    }
+}
+#endif
 
 namespace AP {
 

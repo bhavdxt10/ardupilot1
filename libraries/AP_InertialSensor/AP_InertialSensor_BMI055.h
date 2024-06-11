@@ -35,6 +35,9 @@ public:
      */
     void start() override;
     bool update() override;
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    void update_filters() override;
+#endif
 
 private:
     AP_InertialSensor_BMI055(AP_InertialSensor &imu,

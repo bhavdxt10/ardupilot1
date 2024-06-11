@@ -36,6 +36,9 @@ public:
      */
     void start() override;
     bool update() override;
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    void update_filters() override;
+#endif
 
     enum reg_scha63t {
         RATE_XZ     = 0x01,

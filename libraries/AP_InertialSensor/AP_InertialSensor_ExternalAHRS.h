@@ -16,6 +16,9 @@ public:
     bool update() override;
     void start() override;
     void accumulate() override;
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    void update_filters() override;
+#endif
 
     void handle_external(const AP_ExternalAHRS::ins_data_message_t &pkt) override;
     bool get_output_banner(char* banner, uint8_t banner_len) override;

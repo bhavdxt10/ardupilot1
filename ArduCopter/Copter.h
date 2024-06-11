@@ -626,7 +626,14 @@ private:
         DISABLE_THRUST_LOSS_CHECK     = (1<<0),   // 1
         DISABLE_YAW_IMBALANCE_WARNING = (1<<1),   // 2
         RELEASE_GRIPPER_ON_THRUST_LOSS = (1<<2),  // 4
+        USE_RATE_LOOP_THREAD           = (1<<3),  // 8
+        USE_FIXED_RATE_LOOP_THREAD     = (1<<4),  // 16
     };
+
+    // return true if a flight option is set
+    bool flight_option_is_set(FlightOptions option) const {
+        return (g2.flight_options & uint32_t(option)) != 0;
+    }
 
     static constexpr int8_t _failsafe_priorities[] = {
                                                       (int8_t)FailsafeAction::TERMINATE,
@@ -714,7 +721,10 @@ private:
     void set_accel_throttle_I_from_pilot_throttle();
     void rotate_body_frame_to_NE(float &x, float &y);
     uint16_t get_pilot_speed_dn() const;
-    void run_rate_controller();
+    void rate_controller_thread();
+    void rate_controller_filter_update();
+    void rate_controller_log_update();
+    void run_rate_controller_main();
 
 #if AC_CUSTOMCONTROL_MULTI_ENABLED == ENABLED
     void run_custom_controller() { custom_control.update(); }
@@ -841,6 +851,7 @@ private:
     // Log.cpp
     void Log_Write_Control_Tuning();
     void Log_Write_Attitude();
+    void Log_Write_Rate();
     void Log_Write_EKF_POS();
     void Log_Write_PIDS();
     void Log_Write_Data(LogDataID id, int32_t value);
@@ -888,6 +899,7 @@ private:
     void arm_motors_check();
     void auto_disarm_check();
     void motors_output();
+    void motors_output_main();
     void lost_vehicle_check();
 
     // navigation.cpp
@@ -1047,6 +1059,8 @@ private:
     // mode.cpp
     Mode *mode_from_mode_num(const Mode::Number mode);
     void exit_mode(Mode *&old_flightmode, Mode *&new_flightmode);
+
+    bool started_rate_thread;
 
 public:
     void failsafe_check();      // failsafe.cpp

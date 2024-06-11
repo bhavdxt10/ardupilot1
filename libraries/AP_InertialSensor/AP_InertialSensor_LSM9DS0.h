@@ -15,6 +15,9 @@ public:
     virtual ~AP_InertialSensor_LSM9DS0() { }
     void start(void) override;
     bool update() override;
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    void update_filters() override;
+#endif
 
     static AP_InertialSensor_Backend *probe(AP_InertialSensor &imu,
                                             AP_HAL::OwnPtr<AP_HAL::Device> dev_gyro,

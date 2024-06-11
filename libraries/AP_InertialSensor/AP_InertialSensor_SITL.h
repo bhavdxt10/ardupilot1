@@ -19,6 +19,9 @@ public:
 
     /* update accel and gyro state */
     bool update() override;
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    void update_filters() override;
+#endif
     void start() override;
 
     // detect the sensor

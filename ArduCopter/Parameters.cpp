@@ -1000,7 +1000,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Param: FLIGHT_OPTIONS
     // @DisplayName: Flight mode options
     // @Description: Flight mode specific options
-    // @Bitmask: 0:Disable thrust loss check, 1:Disable yaw imbalance warning, 2:Release gripper on thrust loss
+    // @Bitmask: 0:Disable thrust loss check, 1:Disable yaw imbalance warning, 2:Release gripper on thrust loss, 3:Use a separate rate loop thread
     // @User: Advanced
     AP_GROUPINFO("FLIGHT_OPTIONS", 44, ParametersG2, flight_options, 0),
 
@@ -1227,6 +1227,26 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @Units: Hz
     // @User: Advanced
     AP_GROUPINFO("FS_EKF_FILT", 8, ParametersG2, fs_ekf_filt_hz, FS_EKF_FILT_DEFAULT),
+
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    // @Param: ATT_FILTER_RATE
+    // @DisplayName: Rate thread notch update rate
+    // @Description: The rate of rate thread filter updates in Hz. The actual rate is constrained to be a whole divisor of the gyro rate and thus cannot be larger than the gyro rate. A value of 0 will utilize a rate of half the attitude update rate (usually the gyro rate).
+    // @Range: 400 8000
+    // @Increment: 1
+    // @User: Advanced
+    // @RebootRequired: True
+    AP_GROUPINFO("ATT_FILTER_RATE", 9, ParametersG2, att_filter_rate_hz, 0),
+
+    // @Param: ATT_LOG_RATE
+    // @DisplayName: Rate thread fast logging rate
+    // @Description: The rate of rate thread fast logging in Hz. The actual rate is constrained to be a whole divisor of the gyro rate and thus cannot be larger than the gyro rate. A value of 0 will utilize a rate equivalent to the main loop rate.
+    // @Range: 400 8000
+    // @Increment: 1
+    // @User: Advanced
+    // @RebootRequired: True
+    AP_GROUPINFO("ATT_LOG_RATE", 10, ParametersG2, att_log_rate_hz, 1000),
+#endif
 
     // ID 62 is reserved for the AP_SUBGROUPEXTENSION
 

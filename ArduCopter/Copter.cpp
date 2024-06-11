@@ -113,7 +113,7 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     // update INS immediately to get current gyro data populated
     FAST_TASK_CLASS(AP_InertialSensor, &copter.ins, update),
     // run low level rate controllers that only require IMU data
-    FAST_TASK(run_rate_controller),
+    FAST_TASK(run_rate_controller_main),
 #if AC_CUSTOMCONTROL_MULTI_ENABLED == ENABLED
     FAST_TASK(run_custom_controller),
 #endif
@@ -121,7 +121,7 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     FAST_TASK(heli_update_autorotation),
 #endif //HELI_FRAME
     // send outputs to the motors library immediately
-    FAST_TASK(motors_output),
+    FAST_TASK(motors_output_main),
      // run EKF state estimator (expensive)
     FAST_TASK(read_AHRS),
 #if FRAME_CONFIG == HELI_FRAME
@@ -522,12 +522,22 @@ void Copter::update_batt_compass(void)
 // should be run at loop rate
 void Copter::loop_rate_logging()
 {
-    if (should_log(MASK_LOG_ATTITUDE_FAST) && !copter.flightmode->logs_attitude()) {
+    bool log_rates = true;
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    if (using_rate_thread && copter.g2.att_log_rate_hz != 0) {
+        log_rates = false;
+    }
+#endif
+
+   if (should_log(MASK_LOG_ATTITUDE_FAST) && !copter.flightmode->logs_attitude()) {
         Log_Write_Attitude();
-        Log_Write_PIDS(); // only logs if PIDS bitmask is set
+        if (log_rates) {
+            Log_Write_Rate();
+            Log_Write_PIDS(); // only logs if PIDS bitmask is set
+        }
     }
 #if AP_INERTIALSENSOR_HARMONICNOTCH_ENABLED
-    if (should_log(MASK_LOG_FTN_FAST)) {
+    if (should_log(MASK_LOG_FTN_FAST) && log_rates) {
         AP::ins().write_notch_log_messages();
     }
 #endif
@@ -543,6 +553,7 @@ void Copter::ten_hz_logging_loop()
     // log attitude data if we're not already logging at the higher rate
     if (should_log(MASK_LOG_ATTITUDE_MED) && !should_log(MASK_LOG_ATTITUDE_FAST) && !copter.flightmode->logs_attitude()) {
         Log_Write_Attitude();
+        Log_Write_Rate();
     }
     if (!should_log(MASK_LOG_ATTITUDE_FAST) && !copter.flightmode->logs_attitude()) {
     // log at 10Hz if PIDS bitmask is selected, even if no ATT bitmask is selected; logs at looprate if ATT_FAST and PIDS bitmask set
@@ -674,10 +685,25 @@ void Copter::one_hz_loop()
     AP_Notify::flags.flying = !ap.land_complete;
 
     // slowly update the PID notches with the average loop rate
-    attitude_control->set_notch_sample_rate(AP::scheduler().get_filtered_loop_rate_hz());
+    if (!using_rate_thread) {
+        attitude_control->set_notch_sample_rate(AP::scheduler().get_filtered_loop_rate_hz());
+    }
     pos_control->get_accel_z_pid().set_notch_sample_rate(AP::scheduler().get_filtered_loop_rate_hz());
 #if AC_CUSTOMCONTROL_MULTI_ENABLED == ENABLED
     custom_control.set_notch_sample_rate(AP::scheduler().get_filtered_loop_rate_hz());
+#endif
+
+#if AP_INERTIALSENSOR_RATE_LOOP_WINDOW_ENABLED
+    // see if we should have a separate rate thread
+    if (!started_rate_thread && (flight_option_is_set(FlightOptions::USE_RATE_LOOP_THREAD)
+                        || flight_option_is_set(FlightOptions::USE_FIXED_RATE_LOOP_THREAD))) {
+
+        if (hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&Copter::rate_controller_thread, void),
+                                         "attitude",
+                                         1024, AP_HAL::Scheduler::PRIORITY_RCOUT, 1)) {
+            started_rate_thread = true;
+        }
+    }
 #endif
 }
 
