@@ -156,7 +156,7 @@ class SizeCompareBranches(object):
             'iomcu-f103',
             'iomcu-f103-dshot',
             'iomcu-f103-8MHz-dshot',
-            'iomcu_f103_8MHz',
+            'iomcu-f103-8MHz',
             'luminousbee4',
             'skyviper-v2450',
             'skyviper-f412-rev1',
